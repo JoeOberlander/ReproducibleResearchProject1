@@ -1,0 +1,254 @@
+---
+title: "Reproducible Data Assignment 1"
+author: "Joseph Oberlander"
+date: "January 31, 2017"
+output: html_document
+---
+---
+Introduction (from Coursera Assignment)
+---
+It is now possible to collect a large amount of data about personal movement
+using activity monitoring devices such as a Fitbit, Nike Fuelband, or Jawbone
+Up. These type of devices are part of the "quantified self" movement - a group
+of enthusiasts who take measurements about themselves regularly to improve
+their health, to find patterns in their behavior, or because they are tech geeks.
+But these data remain under-utilized both because the raw data are hard to
+obtain and there is a lack of statistical methods and software for processing and
+interpreting the data.
+  This assignment makes use of data from a personal activity monitoring device.
+This device collects data at 5 minute intervals through out the day. The data
+consists of two months of data from an anonymous individual collected during
+the months of October and November, 2012 and include the number of steps
+taken in 5 minute intervals each day.
+---
+---
+Data
+---
+The data for this assignment can be downloaded from the course web site:
+. Dataset: Activity monitoring data [52K]
+The variables included in this dataset are:
+. steps: Number of steps taking in a 5-minute interval (missing values are
+coded as NA)
+. date: The date on which the measurement was taken in YYYY-MM-DD
+format
+. interval: Identifier for the 5-minute interval in which measurement was
+taken
+
+The dataset is stored in a comma-separated-value (CSV) file and there are a
+total of 17,568 observations in this dataset.
+
+---
+---
+Assignment
+
+## Loading and preprocessing the data
+Show any code that is needed to
+1. Load the data (i.e. read.csv())
+```{r, echo = TRUE}
+#load libraries for all analyses in this assignment
+library(ggplot2)
+library(plyr)
+library(reshape2)
+library(grid)
+library(gridExtra)
+
+#fetch the data
+activity <- read.csv("activity.csv")
+#split data by date
+activity$day <- weekdays(as.Date(activity$date))
+```
+
+2. Process/transform the data (if necessary) into a format suitable for your
+analysis
+```{r, echo = TRUE}
+
+# Melt data frame to prep for casting by date -- 
+# by setting the id variable to date and the measure variable to steps, 
+# this creates a table with multiple values for steps taken within each day
+
+MeltDate <- melt(activity, id.vars="date", measure.vars="steps", na.rm=FALSE)
+
+# Cast data frame to see steps per day 
+# this sums the steps by date-- creates a table of 3 columns x 61 rows
+CastDate <- dcast(MeltDate, date ~ variable, sum)
+```
+
+
+## What is mean total number of steps taken per day?
+
+For this part of the assignment, you can ignore the missing values in the dataset.
+1. Make a histogram of the total number of steps taken each day
+```{r, echo = TRUE}
+plot(CastDate$date, CastDate$steps, type="h", 
+     main="Histogram of Daily Steps", 
+     xlab="date (month day)", ylab="steps/ day", 
+     col="black", lwd=8)
+```
+
+2. Calculate and report the mean and median total number of steps taken
+per day
+```{r, echo = TRUE}
+# mean
+paste("Mean Steps per Day =", mean(CastDate$steps, na.rm=TRUE))
+```
+
+
+```{r, echo=TRUE}
+# median
+paste("Median Steps per Day =", median(CastDate$steps, na.rm=TRUE))
+```
+
+
+
+## What is the average daily activity pattern?
+
+1. Make a time series plot (i.e. type = "l") of the 5-minute interval (x-axis)
+and the average number of steps taken, averaged across all days (y-axis)
+```{r, echo = TRUE}
+# Re-melt data frame to prep for casting by interval, 
+MeltInt <- melt(activity, id.vars="interval", measure.vars="steps", na.rm=TRUE)
+
+# Cast data frame to see mean steps per interval
+CastInt <- dcast(MeltInt, interval ~ variable, mean)
+
+# Create time series plot of average steps by interval
+# Plot line chart with average frequency of steps by interval
+plot(CastInt$interval, CastInt$steps, type="l", 
+     main="Steps Taken During Each 5-min Interval", 
+     xlab="interval #", ylab="steps", col="black", lwd=3)
+```
+
+
+
+2. Which 5-minute interval, on average across all the days in the dataset,
+contains the maximum number of steps?
+```{r, echo = TRUE}
+# Calculate which interval has the maximum number of steps
+paste("Interval with max value =", 
+      CastInt$interval[which(CastInt$steps == max(CastInt$steps))])
+```
+
+
+
+## Imputing missing values
+Note that there are a number of days/intervals where there are missing values
+(coded as NA). The presence of missing days may introduce bias into some
+calculations or summaries of the data.
+1. Calculate and report the total number of missing values in the dataset
+(i.e. the total number of rows with NAs)
+```{r, echo = TRUE}
+# Calculate number of rows in activity data set with NA rows
+sum(is.na(activity$steps))
+```
+
+
+2. Devise a strategy for filling in all of the missing values in the dataset. The
+strategy does not need to be sophisticated. For example, you could use
+the mean/median for that day, or the mean for that 5-minute interval, etc.
+
+I am substituting the daily average for each missing value.
+
+3. Create a new dataset that is equal to the original dataset but with the
+missing data filled in.
+```{r, echo = TRUE}
+#replace the missing values with the daily mean and create new dataset
+activity2<- activity
+nas<- is.na(activity2$steps)
+avg_interval<- tapply(activity2$steps, activity2$interval, 
+                      mean, na.rm=TRUE, simplify = TRUE)
+
+activity2$steps[nas] <- avg_interval[as.character(activity2$interval[nas])]
+
+#double check that no values in the steps column are missing (NA)
+sum(is.na(activity2[,1]))
+
+```
+
+4. Make a histogram of the total number of steps taken each day and Calculate
+and report the mean and median total number of steps taken per day. 
+```{r, echo = TRUE}
+# Melt data frame to prep for casting by date -- 
+# by setting the id variable to date and the measure variable to steps, 
+# this creates a table with multiple values for steps taken within each day
+
+MeltDate2 <- melt(activity2, id.vars="date", measure.vars="steps", na.rm=FALSE)
+
+# Cast data frame to see steps per day 
+# this sums the steps by date-- creates a table of 3 columns x 61 rows
+CastDate2 <- dcast(MeltDate2, date ~ variable, sum)
+#generates histogram
+plot(CastDate2$date, CastDate2$steps, type="h", 
+     main="Histogram of Daily Steps (missing data included)", 
+     xlab="date (month day)", ylab="steps/ day", 
+     col="black", lwd=8)
+```
+
+
+## Calculate and report the mean and median total number of steps taken per day. 
+```{r, echo = TRUE}
+# recalculate mean and median of total daily steps each day
+# mean
+paste("Mean Steps per Day =", mean(CastDate2$steps, na.rm=TRUE))
+```
+
+```{r,echo = TRUE}
+# median
+paste("Median Steps per Day =", median(CastDate2$steps, na.rm=TRUE))
+```
+Do these values differ from the estimates from the first part of the assignment?
+
+With the data omitted, the mean was 10766, and the median was 10765. 
+With the missing data subsituted for the daily means, the mean is 10766 and the median is 10766.
+
+
+What is the impact of imputing missing data on the estimates of the total
+daily number of steps?
+
+The impact appears to be minimal, slightly over 1 step in the median and no change in the mean.
+
+Are there differences in activity patterns between weekdays and weekends?
+For this part the weekdays() function may be of some help here. Use the dataset
+with the filled-in missing values for this part.
+1. Create a new factor variable in the dataset with two levels - "weekday"
+and "weekend" indicating whether a given date is a weekday or weekend
+day.
+```{r, echo = TRUE}
+# divide the date up into weekdays and weekends
+# use a for-loop to determine which group the data are part of
+for (i in 1:nrow(activity2)) {
+  if (activity2$day[i] == "Saturday" | activity2$day[i]== "Sunday") {
+    activity2$dayOfWeek[i] = "weekend"
+  } else {
+    activity2$dayOfWeek[i] = "weekday"
+  }
+}
+#subset the data between the weekend and weekdays
+splitactWeekday <- subset(activity2, dayOfWeek=="weekday")
+splitactWeekend <- subset(activity2, dayOfWeek=="weekend")
+
+#and remelt the data between each group
+MeltWeekday <- melt(splitactWeekday, id.vars="interval", measure.vars="steps")
+MeltWeekend <- melt(splitactWeekend, id.vars="interval", measure.vars="steps")
+actCastWeekday <- dcast(MeltWeekday, interval ~ variable, mean)
+actCastWeekend <- dcast(MeltWeekend, interval ~ variable, mean)
+```
+
+2. Make a panel plot containing a time series plot (i.e. type = "l") of the
+5-minute interval (x-axis) and the average number of steps taken, averaged
+across all weekday days or weekend days (y-axis). The plot should look
+something like the following, which was creating using simulated data:
+Your plot will look different from the one above because you will be using
+the activity monitor data. Note that the above plot was made using the lattice
+system but you can make the same version of the plot using any plotting system
+you choose.
+```{r, echo = TRUE}
+#replot the weekdays data
+plot1 <- qplot(actCastWeekday$interval, actCastWeekday$steps, geom="line",
+               data=actCastWeekday, main="Steps by Interval - Weekday", 
+               xlab="Interval #", ylab="steps")
+#replot the weekend data
+plot2 <- qplot(actCastWeekend$interval, actCastWeekend$steps, geom="line",
+               data=actCastWeekend, main="Steps by Interval - Weekend", 
+               xlab="Interval #", ylab="steps")
+grid.arrange(plot1, plot2, nrow=2)
+```
